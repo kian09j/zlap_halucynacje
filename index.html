@@ -1,0 +1,851 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Złap halucynację</title>
+<meta name="description" content="Krótka gra o sprawdzaniu tekstów od AI: znajdź zdania, które AI zmyśliło. A short game about catching AI hallucinations.">
+<!-- Link preview for LinkedIn and other social sites -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://kian09j.github.io/zlap_halucynacje/">
+<meta property="og:title" content="Złap halucynację / Catch the hallucination">
+<meta property="og:description" content="Porównaj tekst od AI ze źródłem i znajdź zmyślone zdania. 4 teksty, PL / EN.">
+<meta property="og:image" content="https://kian09j.github.io/zlap_halucynacje/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Robot Bajtek i tytuł gry Złap halucynację">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cpath d='M60 26V13' stroke='%2337352f' stroke-width='5' stroke-linecap='round'/%3E%3Ccircle cx='60' cy='10' r='8' fill='%23f5c84c' stroke='%2337352f' stroke-width='4'/%3E%3Crect x='10' y='26' width='100' height='84' rx='28' fill='%23ffffff' stroke='%2337352f' stroke-width='6'/%3E%3Crect x='24' y='42' width='72' height='52' rx='16' fill='%23f1f1ef' stroke='%2337352f' stroke-width='4'/%3E%3Cellipse cx='45' cy='66' rx='7' ry='10' fill='%2337352f'/%3E%3Cellipse cx='75' cy='66' rx='7' ry='10' fill='%2337352f'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #ffffff;
+    --text: #37352f;
+    --muted: #787774;
+    --faint: #9b9a97;
+    --line: #e9e9e7;
+    --hover: #f7f7f5;
+    --gray: #f1f1ef;
+    --blue: #2383e2;
+    --blue-hover: #0b6ec5;
+    --blue-bg: #e7f3f8;
+    --blue-text: #337ea9;
+    --green: #448361;
+    --green-bg: #dbeddb;
+    --red: #d44c47;
+    --red-bg: #fdebec;
+    --yellow-bg: #fbf3db;
+    --font: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Helvetica, Arial, sans-serif, "Segoe UI Emoji", "Apple Color Emoji";
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 16px;
+    line-height: 1.55;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 24px 16px 48px;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { width: 100%; max-width: 680px; }
+  a { color: var(--blue-text); }
+
+  /* Header */
+  header {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding-bottom: 12px; margin-bottom: 16px; border-bottom: 1px solid var(--line);
+  }
+  .logo { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 6px; }
+  .logo .ai {
+    font-family: SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 85%;
+    color: #eb5757; background: rgba(135, 131, 120, 0.15); border-radius: 4px; padding: 1px 5px;
+  }
+  .lang { display: flex; gap: 2px; background: var(--gray); border-radius: 6px; padding: 2px; }
+  .lang button {
+    font: inherit; font-size: 13px; font-weight: 500; color: var(--muted);
+    background: transparent; border: 0; border-radius: 4px; padding: 2px 10px; cursor: pointer;
+  }
+  .lang button[aria-pressed="true"] { background: #fff; color: var(--text); box-shadow: 0 1px 2px rgba(15, 15, 15, 0.12); }
+  .lang button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+  .stats { display: flex; gap: 6px; }
+  .pill {
+    font-size: 13px; font-weight: 500; color: var(--muted); background: var(--gray);
+    border-radius: 4px; padding: 2px 8px; display: flex; align-items: center; gap: 4px; white-space: nowrap;
+  }
+  .pill.bump { animation: bump 0.4s ease; }
+  @keyframes bump { 50% { transform: scale(1.12); } }
+
+  /* Progress: one segment per text */
+  .trail { display: flex; gap: 4px; margin: 0 0 26px; }
+  .step { flex: 1; height: 4px; border-radius: 2px; background: var(--line); }
+  .step.now { background: var(--blue); }
+  .step.ok { background: #6fbf8a; }
+  .step.part { background: #e9c46a; }
+  .step.no { background: #e8a5a1; }
+
+  .screen-in { animation: fadeIn 0.25s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  /* Mascot */
+  .mascot { display: block; overflow: visible; transform-origin: 50% 100%; }
+  .mascot .eyes-open { transform-origin: 60px 56px; animation: blink 5s ease-in-out infinite; }
+  .mascot .eyes-happy, .mascot .m-big, .mascot .m-o { display: none; }
+  .mascot[data-mood="happy"] .eyes-open, .mascot[data-mood="happy"] .m-smile { display: none; }
+  .mascot[data-mood="happy"] .eyes-happy, .mascot[data-mood="happy"] .m-big { display: inline; }
+  .mascot[data-mood="happy"] { animation: hop 0.5s ease; }
+  .mascot[data-mood="oops"] .m-smile { display: none; }
+  .mascot[data-mood="oops"] .m-o { display: inline; }
+  .mascot[data-mood="oops"] { animation: shake 0.4s ease; }
+  .mascot .pupil { transition: transform 0.3s; }
+  .mascot[data-mood="think"] .pupil { transform: translate(2px, -2px); }
+  @keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
+  @keyframes hop { 50% { transform: translateY(-8px); } }
+  @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+  .guide { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .guide .mascot { width: 44px; height: 44px; flex: 0 0 44px; }
+  .bubble { flex: 1; background: var(--gray); border-radius: 6px; padding: 10px 14px; }
+  .bubble.ok { background: var(--green-bg); }
+  .bubble.part { background: var(--yellow-bg); }
+  .bubble.no { background: var(--red-bg); }
+  .bubble.pop { animation: fadeIn 0.25s ease; }
+
+  .round-tag {
+    display: inline-block; font-size: 12px; font-weight: 500; color: var(--blue-text); background: var(--blue-bg);
+    border-radius: 4px; padding: 1px 7px; margin-bottom: 8px;
+  }
+  .task { font-size: 20px; font-weight: 700; line-height: 1.35; letter-spacing: -0.01em; margin: 2px 0 18px; }
+
+  .box-label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); margin: 0 0 6px; }
+
+  /* The source: what is true */
+  .src { background: var(--yellow-bg); border-radius: 6px; padding: 12px 14px; margin-bottom: 18px; }
+  .src ul { margin: 0; padding: 0 0 0 18px; }
+  .src li { margin: 2px 0; padding: 1px 4px; border-radius: 3px; transition: background 0.3s; }
+  .src li.hit { background: #f8d66d; }
+
+  /* The AI's text: sentences the player can flag */
+  .ai { border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(15, 15, 15, 0.04); }
+  .ai .q { margin: 0 0 8px; font-size: 14px; color: var(--muted); }
+  .ai .q b { color: var(--text); font-weight: 600; }
+  .ai .body { margin: 0; font-size: 17px; line-height: 1.7; }
+  .sent {
+    cursor: pointer; border-radius: 3px; padding: 1px 2px; transition: background 0.12s;
+    -webkit-box-decoration-break: clone; box-decoration-break: clone;
+  }
+  .sent:hover { background: var(--hover); box-shadow: inset 0 -1px 0 #d3d1cb; }
+  .sent:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+  .sent[aria-pressed="true"] { background: var(--red-bg); color: #8a2c28; box-shadow: inset 0 -2px 0 #f0b8b5; }
+  .sent[aria-pressed="true"]::before { content: "🚩 "; }
+  .checked .sent { cursor: default; }
+  .checked .sent:hover { background: transparent; box-shadow: none; }
+  .checked .sent.caught { background: var(--green-bg); color: var(--text); box-shadow: inset 0 -2px 0 #9fd0ac; }
+  .checked .sent.caught::before { content: "✓ "; color: var(--green); font-weight: 700; }
+  .checked .sent.missed { background: transparent; color: var(--text); text-decoration: underline wavy var(--red); text-underline-offset: 4px; }
+  .checked .sent.missed::before { content: "⚠ "; color: var(--red); }
+  .checked .sent.wrongflag { background: var(--gray); color: var(--muted); box-shadow: none; }
+  .checked .sent.wrongflag::before { content: "↩ "; }
+
+  .check-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .counter { font-size: 14px; color: var(--muted); }
+  .counter.nudge { color: var(--red); animation: shake 0.3s ease; }
+
+  /* Notes after checking */
+  .notes { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 8px; }
+  .notes li { border-radius: 6px; padding: 10px 12px; border: 1px solid var(--line); animation: fadeIn 0.25s both; }
+  .notes .tag { display: inline-block; font-size: 12px; font-weight: 600; border-radius: 4px; padding: 1px 7px; margin-bottom: 4px; }
+  .notes .caught .tag { background: var(--green-bg); color: var(--green); }
+  .notes .missed .tag { background: var(--red-bg); color: var(--red); }
+  .notes .wrongflag .tag { background: var(--gray); color: var(--muted); }
+  .notes q { display: block; font-style: italic; color: var(--muted); margin-bottom: 2px; }
+  .notes q::before, .notes q::after { content: ""; }
+
+  /* Lesson callout */
+  .lesson { margin-top: 18px; padding: 14px 16px; border-radius: 6px; background: var(--gray); animation: fadeIn 0.3s 0.1s both; }
+  .lesson h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .lesson p { margin: 0; }
+
+  /* Buttons */
+  .btn {
+    font: inherit; font-size: 15px; font-weight: 500; cursor: pointer; border: 0; border-radius: 6px;
+    padding: 8px 16px; background: var(--blue); color: #fff; display: inline-flex; align-items: center;
+    justify-content: center; gap: 6px; transition: background 0.12s, opacity 0.12s;
+    box-shadow: inset 0 0 0 1px rgba(15, 15, 15, 0.1), 0 1px 2px rgba(15, 15, 15, 0.1);
+  }
+  .btn:hover:not(:disabled) { background: var(--blue-hover); }
+  .btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .btn:disabled { opacity: 0.45; cursor: default; }
+  .actions { margin-top: 20px; display: flex; justify-content: flex-end; }
+
+  .footnote { margin: 32px 0 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--faint); }
+  .hidden { display: none !important; }
+
+  /* Start and end pages */
+  .hero { display: flex; flex-direction: column; align-items: flex-start; }
+  .hero .mascot { width: 76px; height: 76px; margin: 12px 0 10px; }
+  .hero .bubble { flex: none; width: 100%; margin: 0 0 8px; }
+  h1 { font-size: 38px; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 14px; }
+  h2 { font-size: 20px; font-weight: 600; margin: 28px 0 10px; }
+
+  .what { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; margin: 6px 0 4px; }
+  .what strong { font-weight: 600; }
+  .what p { margin: 2px 0 0; color: var(--muted); }
+  .how { width: 100%; margin: 10px 0 18px; }
+  .how h2 { margin-top: 12px; }
+  .how ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+  .how li { display: flex; gap: 12px; align-items: flex-start; padding: 8px 0; }
+  .how .num {
+    flex: 0 0 26px; height: 26px; border-radius: 6px; display: grid; place-items: center;
+    font-size: 14px; font-weight: 600;
+  }
+  .how strong { display: block; font-weight: 600; }
+  .how p { margin: 2px 0 0; color: var(--muted); }
+  .expect { width: 100%; background: var(--blue-bg); border-radius: 6px; padding: 12px 14px; margin: 0 0 22px; }
+  .expect strong { font-weight: 600; }
+  .expect p { margin: 2px 0 0; }
+  .series { margin: 26px 0 0; font-size: 14px; color: var(--muted); }
+  .series a { margin-right: 10px; white-space: nowrap; }
+
+  .score-blob b { font-size: 44px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; }
+  .score-blob span { color: var(--muted); }
+  .score-msg { color: var(--muted); margin: 4px 0 4px; }
+  .rules { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 6px; }
+  .rules li {
+    display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border-radius: 6px;
+    background: var(--note); animation: fadeIn 0.3s both; animation-delay: var(--delay);
+  }
+  .rules .num {
+    flex: 0 0 24px; height: 24px; border-radius: 50%; background: #fff; display: grid; place-items: center;
+    font-size: 13px; font-weight: 600; box-shadow: inset 0 0 0 1px rgba(15, 15, 15, 0.1);
+  }
+  .rules strong { font-weight: 600; }
+  .callout { display: flex; gap: 10px; align-items: flex-start; border-radius: 6px; padding: 12px 14px; background: var(--blue-bg); }
+  .callout .ico { font-size: 18px; line-height: 1.3; }
+  .callout strong { display: block; font-weight: 600; }
+  .end-actions { margin-top: 22px; }
+
+  @media (max-width: 480px) {
+    body { padding-top: 16px; }
+    h1 { font-size: 30px; }
+    .task { font-size: 18px; }
+    .ai .body { font-size: 16px; }
+    .check-row { flex-wrap: wrap; }
+    .actions .btn { width: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="logo" id="logo">Złap <span class="ai">halucynację</span></div>
+    <div class="lang" id="lang" role="group" aria-label="Język / Language">
+      <button type="button" data-lang="pl" aria-pressed="true">PL</button>
+      <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+    <div class="stats hidden" id="stats">
+      <div class="pill" id="progressText">1/4</div>
+      <div class="pill" id="scoreText"></div>
+    </div>
+  </header>
+  <div class="trail hidden" id="trail"></div>
+
+  <main id="screen"></main>
+  <p class="footnote hidden" id="footnote"></p>
+</div>
+
+<script>
+/*
+  Each text: a source (what is true) and the AI's text as a list of sentences.
+  A sentence with h is made up: h.src is the index of the source line to compare with,
+  h.note says what the source actually says.
+*/
+
+const ROUNDS_PL = [
+  {
+    task: "AI streściło notatkę ze spotkania z klientem. Znajdź 2 zdania, które nie zgadzają się z notatką.",
+    srcTitle: "Notatka ze spotkania",
+    src: [
+      "Spotkanie z firmą Nordtex, 14 marca.",
+      "Obecni: Marta (my), pan Marek Zieliński (Nordtex).",
+      "Nordtex chce zamówić 200 krzeseł biurowych, dostawa do końca kwietnia.",
+      "Cena: 450 zł za sztukę. Rabat 5% przy płatności z góry, do decyzji Nordtexu.",
+      "Następny krok: Marta wysyła ofertę do piątku."
+    ],
+    aiTitle: "Podsumowanie od AI",
+    sents: [
+      { t: "Spotkanie z firmą Nordtex odbyło się 14 marca." },
+      { t: "Ze strony Nordtexu był obecny pan Marek Zieliński." },
+      { t: "Nordtex chce zamówić 250 krzeseł biurowych z dostawą do końca kwietnia.", h: { src: 2, note: "W notatce: 200 krzeseł, nie 250." } },
+      { t: "Cena to 450 zł za sztukę, z możliwym rabatem 5% przy płatności z góry." },
+      { t: "Następny krok: Marta wysyła ofertę do poniedziałku.", h: { src: 4, note: "W notatce: oferta do piątku." } }
+    ],
+    lesson: "AI potrafi pomylić liczby i daty nawet wtedy, gdy ma je przed sobą. Liczby, daty i nazwy zawsze porównuj ze źródłem, zanim wyślesz tekst dalej."
+  },
+  {
+    task: "AI napisało artykuł do firmowego newslettera na podstawie wyników ankiety. Znajdź 2 zmyślone zdania.",
+    srcTitle: "Wyniki ankiety wewnętrznej, luty 2026",
+    src: [
+      "W ankiecie wzięło udział 120 pracowników.",
+      "64% chce pracować zdalnie 2 lub 3 dni w tygodniu.",
+      "Najczęstszy problem: słaba jakość połączeń wideo w salach.",
+      "Zarząd omówi wyniki na spotkaniu w marcu."
+    ],
+    aiTitle: "Artykuł od AI",
+    sents: [
+      { t: "W lutowej ankiecie wzięło udział 120 pracowników." },
+      { t: "64% z nich chce pracować zdalnie 2 lub 3 dni w tygodniu." },
+      { t: "To zgodne z badaniem Instytutu Badań nad Pracą Hybrydową z 2025 roku, według którego praca hybrydowa zwiększa produktywność o 27%.", h: { src: -1, note: "W źródle nie ma żadnego badania. AI potrafi dopisać „badania” i liczby, które brzmią wiarygodnie, ale nie istnieją." } },
+      { t: "Najczęściej zgłaszany problem to słaba jakość połączeń wideo w salach." },
+      { t: "Prezes firmy skomentował: „Wyniki pokazują, że elastyczność to nasza przyszłość”.", h: { src: -1, note: "W źródle nie ma żadnego cytatu. Prezes nic takiego nie powiedział." } },
+      { t: "Zarząd omówi wyniki na spotkaniu w marcu." }
+    ],
+    lesson: "AI lubi dodawać badania i cytaty, bo tak wyglądają dobre artykuły. Jeśli w tekście od AI jest źródło albo cytat, sprawdź, czy naprawdę istnieje. Jeśli nie da się tego sprawdzić, usuń je."
+  },
+  {
+    task: "Pracownik zapytał AI o zasady rozliczania podróży. Znajdź 2 zdania, które przekręcają regulamin.",
+    srcTitle: "Regulamin podróży służbowych (fragment)",
+    src: [
+      "Pociąg: można kupić bilet w 1. klasie, jeśli podróż trwa ponad 3 godziny.",
+      "Hotel: do 400 zł za noc. Wyższą kwotę musi zatwierdzić przełożony.",
+      "Taksówki: tylko gdy nie ma komunikacji publicznej albo po 22:00.",
+      "Rozliczenie: do 14 dni od powrotu, z rachunkami."
+    ],
+    aiTitle: "Odpowiedź AI",
+    question: "Co mogę rozliczyć z podróży do Gdańska?",
+    sents: [
+      { t: "Bilet w 1. klasie możesz kupić, jeśli podróż trwa ponad 3 godziny." },
+      { t: "Za hotel możesz wydać do 400 zł za noc, a wyższą kwotę zatwierdza przełożony." },
+      { t: "Taksówkę możesz rozliczyć zawsze, jeśli masz rachunek.", h: { src: 2, note: "W regulaminie: tylko gdy nie ma komunikacji publicznej albo po 22:00. AI zgubiło warunek." } },
+      { t: "Rozliczenie składasz do 14 dni od powrotu." },
+      { t: "Rachunki nie są potrzebne, wystarczy wpisać kwoty w systemie.", h: { src: 3, note: "W regulaminie: rozliczenie z rachunkami. AI odwróciło sens." } },
+      { t: "Miłej podróży do Gdańska!" }
+    ],
+    lesson: "Najtrudniej wyłapać drobne zmiany sensu: zgubiony warunek, „zawsze” zamiast „tylko gdy”, „nie trzeba” zamiast „trzeba”. Przy zasadach i przepisach czytaj odpowiedź AI zdanie po zdaniu razem ze źródłem. A uprzejme „miłej podróży” to nie halucynacja: liczą się fakty."
+  },
+  {
+    task: "Klient zapytał czat na stronie sklepu o słuchawki. Znajdź 2 zdania, których nie ma w opisie produktu.",
+    srcTitle: "Opis produktu: słuchawki Nordo Air",
+    src: [
+      "Bateria: do 30 godzin słuchania.",
+      "Ładowanie: USB-C, pełne ładowanie w 2 godziny.",
+      "Gwarancja: 2 lata.",
+      "Kolory: czarny i biały."
+    ],
+    aiTitle: "Odpowiedź czatu AI",
+    question: "Czy słuchawki są wodoodporne i czy mogę je zwrócić po 30 dniach?",
+    sents: [
+      { t: "Dziękujemy za pytanie o słuchawki Nordo Air!" },
+      { t: "Tak, słuchawki są wodoodporne w klasie IPX4, więc możesz w nich biegać w deszczu.", h: { src: -1, note: "W opisie produktu nie ma ani słowa o wodoodporności. AI wymyśliło konkretną klasę, żeby odpowiedź brzmiała pewnie." } },
+      { t: "Słuchawki mają 2 lata gwarancji." },
+      { t: "Zwrotu możesz dokonać do 60 dni od zakupu.", h: { src: -1, note: "W źródle nie ma zasad zwrotu. AI nie wie, więc zgaduje, a klient może potem żądać tych 60 dni." } },
+      { t: "Bateria starcza na maksymalnie 30 godzin słuchania." }
+    ],
+    lesson: "Gdy AI czegoś nie wie, rzadko mówi „nie wiem”. Zamiast tego podaje pewnie brzmiące szczegóły. Dopisz do polecenia: „Jeśli czegoś nie ma w źródle, napisz, że tego nie wiesz”."
+  }
+];
+
+const ROUNDS_EN = [
+  {
+    task: "The AI summarized notes from a client meeting. Find the 2 sentences that don't match the notes.",
+    srcTitle: "Meeting notes",
+    src: [
+      "Meeting with Nordtex, March 14.",
+      "Present: Martha (us), Mark Zielinski (Nordtex).",
+      "Nordtex wants to order 200 office chairs, delivery by the end of April.",
+      "Price: PLN 450 each. 5% discount for paying upfront, Nordtex to decide.",
+      "Next step: Martha sends the quote by Friday."
+    ],
+    aiTitle: "AI's summary",
+    sents: [
+      { t: "The meeting with Nordtex took place on March 14." },
+      { t: "Mark Zielinski attended for Nordtex." },
+      { t: "Nordtex wants to order 250 office chairs, delivered by the end of April.", h: { src: 2, note: "The notes say 200 chairs, not 250." } },
+      { t: "The price is PLN 450 each, with a possible 5% discount for paying upfront." },
+      { t: "Next step: Martha sends the quote by Monday.", h: { src: 4, note: "The notes say the quote goes out by Friday." } }
+    ],
+    lesson: "AI can get numbers and dates wrong even when they're right in front of it. Always check numbers, dates and names against the source before you pass the text on."
+  },
+  {
+    task: "The AI wrote an article for the company newsletter based on survey results. Find the 2 made-up sentences.",
+    srcTitle: "Internal survey results, February 2026",
+    src: [
+      "120 employees took part in the survey.",
+      "64% want to work remotely 2 or 3 days a week.",
+      "Most common problem: poor video call quality in meeting rooms.",
+      "The board will discuss the results at a meeting in March."
+    ],
+    aiTitle: "AI's article",
+    sents: [
+      { t: "120 employees took part in our February survey." },
+      { t: "64% of them want to work remotely 2 or 3 days a week." },
+      { t: "This is in line with a 2025 study by the Hybrid Work Research Institute, which found that hybrid work boosts productivity by 27%.", h: { src: -1, note: "There's no study in the source. AI can add “studies” and numbers that sound convincing but don't exist." } },
+      { t: "The most frequently reported problem is poor video call quality in meeting rooms." },
+      { t: "The CEO commented: “The results show that flexibility is our future.”", h: { src: -1, note: "There's no quote in the source. The CEO never said this." } },
+      { t: "The board will discuss the results at a meeting in March." }
+    ],
+    lesson: "AI likes to add studies and quotes, because that's what good articles look like. If a text from AI mentions a source or a quote, check that it really exists. If you can't check it, take it out."
+  },
+  {
+    task: "An employee asked the AI about the travel expense rules. Find the 2 sentences that twist the policy.",
+    srcTitle: "Business travel policy (excerpt)",
+    src: [
+      "Train: you may buy a first-class ticket if the journey takes more than 3 hours.",
+      "Hotel: up to PLN 400 a night. A higher amount must be approved by your manager.",
+      "Taxis: only when there's no public transport or after 10 pm.",
+      "Expense claims: within 14 days of returning, with receipts."
+    ],
+    aiTitle: "AI's answer",
+    question: "What can I claim for my trip to Gdańsk?",
+    sents: [
+      { t: "You can buy a first-class train ticket if the journey takes more than 3 hours." },
+      { t: "You can spend up to PLN 400 a night on a hotel, and a higher amount needs your manager's approval." },
+      { t: "You can always claim a taxi as long as you have a receipt.", h: { src: 2, note: "The policy says only when there's no public transport or after 10 pm. The AI dropped the condition." } },
+      { t: "Submit your claim within 14 days of returning." },
+      { t: "You don't need receipts, just enter the amounts in the system.", h: { src: 3, note: "The policy says claims need receipts. The AI turned it around." } },
+      { t: "Have a great trip to Gdańsk!" }
+    ],
+    lesson: "The hardest ones to catch are small changes in meaning: a dropped condition, “always” instead of “only when”, “you don't need” instead of “you need”. With rules and policies, read the AI's answer sentence by sentence next to the source. And a friendly “have a great trip” isn't a hallucination: it's the facts that count."
+  },
+  {
+    task: "A customer asked the chatbot on a shop's website about headphones. Find the 2 sentences that aren't in the product description.",
+    srcTitle: "Product description: Nordo Air headphones",
+    src: [
+      "Battery: up to 30 hours of listening.",
+      "Charging: USB-C, fully charged in 2 hours.",
+      "Warranty: 2 years.",
+      "Colours: black and white."
+    ],
+    aiTitle: "AI chatbot's answer",
+    question: "Are the headphones waterproof, and can I return them after 30 days?",
+    sents: [
+      { t: "Thanks for your question about the Nordo Air headphones!" },
+      { t: "Yes, they're water-resistant to IPX4, so you can go running in the rain.", h: { src: -1, note: "The product description says nothing about water resistance. The AI made up a specific rating so the answer would sound confident." } },
+      { t: "The headphones come with a 2-year warranty." },
+      { t: "You can return them within 60 days of purchase.", h: { src: -1, note: "There's no return policy in the source. The AI doesn't know, so it guesses, and the customer may later insist on those 60 days." } },
+      { t: "The battery lasts up to 30 hours of listening." }
+    ],
+    lesson: "When AI doesn't know something, it rarely says “I don't know”. It gives confident-sounding details instead. Add to your prompt: “If something isn't in the source, say you don't know.”"
+  }
+];
+
+function starsWordPl(n) {
+  if (n === 1) return "gwiazdka";
+  const last = n % 10, lastTwo = n % 100;
+  return last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14) ? "gwiazdki" : "gwiazdek";
+}
+
+const TEXT = {
+  pl: {
+    title: "Złap halucynację",
+    logo: 'Złap <span class="ai">halucynację</span>',
+    hello: "Cześć, tu Bajtek! Muszę się przyznać: czasem zmyślam. Pomożesz mi to wyłapać?",
+    whatTitle: "Co to jest halucynacja?",
+    what: "Tak nazywamy sytuację, gdy AI podaje coś nieprawdziwego, ale brzmi przy tym bardzo pewnie. AI nie kłamie celowo: dopisuje to, co dobrze pasuje do tekstu, nawet jeśli to nieprawda.",
+    howTitle: "Jak grać?",
+    how: [
+      ["Przeczytaj źródło", "Notatkę, wyniki ankiety, regulamin albo opis produktu. To jest prawda."],
+      ["Przeczytaj tekst od AI", "AI napisało go na podstawie źródła. W każdym tekście są dokładnie 2 zmyślenia."],
+      ["Kliknij zdania, które się nie zgadzają", "Potem sprawdź, czy masz rację, i zobacz, co mówi źródło."]
+    ],
+    expectTitle: "Czego się spodziewać?",
+    expect: "4 teksty z pracy biurowej, około 5 minut. Za każde złapane zmyślenie dostajesz gwiazdkę.",
+    start: "Zaczynamy",
+    think: "Porównaj tekst od AI ze źródłem i kliknij zmyślone zdania.",
+    round: "Tekst",
+    srcLabel: "Źródło",
+    question: "Pytanie:",
+    quote: (s) => `„${s}”`,
+    counter: (n, m) => `Oznaczono ${n} z ${m}`,
+    full: (m) => `Możesz oznaczyć tylko ${m}. Najpierw odznacz jedno zdanie.`,
+    check: "Sprawdź",
+    all: "Wszystkie zmyślenia złapane! Masz 2 gwiazdki.",
+    some: (n, t) => `Złapane: ${n} z ${t}. Zobacz, co umknęło.`,
+    none: "Tym razem AI Cię przechytrzyło. Zobacz, co mówi źródło.",
+    caught: "Złapane",
+    missed: "Przeoczone",
+    wrongflag: "W porządku",
+    wrongNote: "To zdanie jest w porządku: zgadza się ze źródłem albo nie podaje żadnych faktów.",
+    lesson: "Lekcja",
+    next: "Dalej",
+    result: "Zobacz wynik",
+    points: "Gwiazdki",
+    stars: starsWordPl,
+    msgs: [
+      "Perfekcyjnie! Żadne zmyślenie Ci nie umknęło.",
+      "Świetnie! Masz oko do szczegółów.",
+      "Nieźle! Kilka zmyśleń jeszcze się prześlizgnęło.",
+      "AI potrafi brzmieć bardzo przekonująco. Zagraj jeszcze raz!"
+    ],
+    endTitle: "Jak łapać halucynacje",
+    rules: [
+      ["Liczby, daty, nazwy", "porównaj ze źródłem, zawsze."],
+      ["Badania i cytaty", "sprawdź, czy istnieją. Jeśli nie da się sprawdzić, usuń."],
+      ["Zasady i warunki", "czytaj zdanie po zdaniu, szukaj zgubionych „tylko gdy”."],
+      ["Szczegóły spoza źródła", "zapytaj: skąd AI to wie?"]
+    ],
+    tipTitle: "Zapobiegaj, zanim AI zacznie pisać",
+    tip: "Dopisz do polecenia: „Opieraj się tylko na załączonym tekście. Jeśli czegoś w nim nie ma, napisz, że nie wiesz”.",
+    again: "Zagraj jeszcze raz",
+    series: "Z tej samej serii:",
+    games: [["Myśl jak AI", "https://kian09j.github.io/mysl_jak_ai/"], ["Popraw polecenie", "https://kian09j.github.io/popraw_polecenie/"], ["Czy mogę to wkleić?", "https://kian09j.github.io/czy_moge_to_wkleic/"]],
+    footnote: "Teksty są przykładowe, napisane ręcznie, żeby pokazać typowe błędy AI."
+  },
+  en: {
+    title: "Catch the hallucination",
+    logo: 'Catch the <span class="ai">hallucination</span>',
+    hello: "Hi, it's Bajtek! I have to admit something: sometimes I make things up. Will you help me catch it?",
+    whatTitle: "What is a hallucination?",
+    what: "That's what we call it when AI says something untrue but sounds very sure of itself. AI isn't lying on purpose: it adds whatever fits the text well, even if it isn't true.",
+    howTitle: "How to play",
+    how: [
+      ["Read the source", "Meeting notes, survey results, a policy or a product description. This is the truth."],
+      ["Read the AI's text", "The AI wrote it based on the source. Every text has exactly 2 made-up sentences."],
+      ["Click the sentences that don't match", "Then check whether you were right and see what the source says."]
+    ],
+    expectTitle: "What to expect",
+    expect: "4 texts from office work, about 5 minutes. You get a star for every made-up sentence you catch.",
+    start: "Let's go",
+    think: "Compare the AI's text with the source and click the made-up sentences.",
+    round: "Text",
+    srcLabel: "Source",
+    question: "Question:",
+    quote: (s) => `“${s}”`,
+    counter: (n, m) => `${n} of ${m} flagged`,
+    full: (m) => `You can only flag ${m}. Unflag a sentence first.`,
+    check: "Check",
+    all: "You caught them all! 2 stars for you.",
+    some: (n, t) => `Caught: ${n} of ${t}. See what slipped through.`,
+    none: "The AI fooled you this time. See what the source says.",
+    caught: "Caught",
+    missed: "Missed",
+    wrongflag: "This one's fine",
+    wrongNote: "This one's fine: it matches the source or doesn't state any facts.",
+    lesson: "Lesson",
+    next: "Next",
+    result: "See your score",
+    points: "Stars",
+    stars: (n) => (n === 1 ? "star" : "stars"),
+    msgs: [
+      "Perfect! Nothing made up got past you.",
+      "Great! You have an eye for detail.",
+      "Not bad! A few made-up details slipped through.",
+      "AI can sound very convincing. Try again!"
+    ],
+    endTitle: "How to catch hallucinations",
+    rules: [
+      ["Numbers, dates, names", "check them against the source, every time."],
+      ["Studies and quotes", "check that they exist. If you can't check, take them out."],
+      ["Rules and conditions", "read sentence by sentence, look for a missing “only when”."],
+      ["Details that aren't in the source", "ask: how would the AI know this?"]
+    ],
+    tipTitle: "Prevent it before the AI starts writing",
+    tip: "Add to your prompt: “Use only the attached text. If something isn't in it, say you don't know.”",
+    again: "Play again",
+    series: "Also in this series:",
+    games: [["Think like AI", "https://kian09j.github.io/mysl_jak_ai/"], ["Fix the prompt", "https://kian09j.github.io/popraw_polecenie/"], ["Can I paste this?", "https://kian09j.github.io/czy_moge_to_wkleic/"]],
+    footnote: "The texts are examples, written by hand to show typical AI mistakes."
+  }
+};
+
+const HOW_COLORS = ["#fbf3db", "#e7f3f8", "#fdebec"];
+const NOTE_COLORS = ["#fbf3db", "#edf3ec", "#e7f3f8", "#f6f3f9"];
+const ICONS = { star: "⭐", bulb: "💡", arrow: "→", doc: "📄", ai: "🤖", tip: "🛡️" };
+
+// Set by setLang(): the active language's texts and UI strings.
+let ROUNDS = ROUNDS_PL, T = TEXT.pl;
+let lang = "pl";
+
+// Bajtek, the little robot guide from "Myśl jak AI". Mood: idle, think, happy, oops.
+function mascot(mood = "idle") {
+  const ink = "#37352f";
+  return `
+  <svg class="mascot" data-mood="${mood}" viewBox="0 0 120 120" aria-hidden="true">
+    <g class="body" fill="none" stroke="${ink}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M35 99C27 99 24 95 23 90"/>
+      <path d="M85 99C93 99 96 95 97 90"/>
+      <rect x="34" y="88" width="52" height="26" rx="11" fill="#fff"/>
+      <path d="M60 108c-5-3.4-7.6-6-7.6-8.6a3.6 3.6 0 0 1 7.6-1.6a3.6 3.6 0 0 1 7.6 1.6c0 2.6-2.6 5.2-7.6 8.6z" fill="#e16259" stroke-width="2.5"/>
+      <path d="M60 26V14"/>
+      <circle cx="60" cy="9" r="5.5" fill="#f5c84c"/>
+      <rect x="8" y="46" width="11" height="20" rx="5" fill="#fff"/>
+      <rect x="101" y="46" width="11" height="20" rx="5" fill="#fff"/>
+      <rect x="16" y="24" width="88" height="64" rx="24" fill="#fff"/>
+      <rect x="28" y="37" width="64" height="40" rx="14" fill="#f1f1ef" stroke-width="2.5"/>
+    </g>
+    <g class="eyes-open">
+      <ellipse cx="47" cy="56" rx="5" ry="6.5" fill="${ink}"/>
+      <ellipse cx="73" cy="56" rx="5" ry="6.5" fill="${ink}"/>
+      <g class="pupil"><circle cx="48.6" cy="53.6" r="1.7" fill="#fff"/><circle cx="74.6" cy="53.6" r="1.7" fill="#fff"/></g>
+    </g>
+    <g class="eyes-happy" fill="none" stroke="${ink}" stroke-width="3.5" stroke-linecap="round">
+      <path d="M41.5 58q5.5-8 11 0"/><path d="M67.5 58q5.5-8 11 0"/>
+    </g>
+    <circle cx="37" cy="66" r="3.5" fill="#f5c0c0"/>
+    <circle cx="83" cy="66" r="3.5" fill="#f5c0c0"/>
+    <path class="m-smile" d="M55 66q5 4.5 10 0" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>
+    <path class="m-big" d="M53.5 64.5q6.5 9 13 0z" fill="${ink}"/>
+    <ellipse class="m-o" cx="60" cy="68" rx="3.5" ry="4" fill="${ink}"/>
+  </svg>`;
+}
+
+const $ = (id) => document.getElementById(id);
+const screen = $("screen");
+let current = 0;
+let score = 0;
+let results = [];   // per text: { caught, total }
+let view = "start";
+let flags = new Set();   // indexes of flagged sentences
+let checked = false;
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+const madeUp = (r) => r.sents.map((s, i) => (s.h ? i : -1)).filter((i) => i >= 0);
+const maxStars = () => ROUNDS.reduce((s, r) => s + madeUp(r).length, 0);
+
+function setScreen(html) {
+  screen.classList.remove("screen-in");
+  screen.innerHTML = html;
+  void screen.offsetWidth;
+  screen.classList.add("screen-in");
+}
+
+function setChrome(inGame) {
+  $("stats").classList.toggle("hidden", !inGame);
+  $("trail").classList.toggle("hidden", !inGame);
+  $("footnote").classList.toggle("hidden", !inGame);
+  $("lang").classList.toggle("hidden", inGame);
+}
+
+function readSavedLang() {
+  try { return localStorage.getItem("lang"); } catch (e) { return null; }
+}
+
+function setLang(l) {
+  lang = l === "en" ? "en" : "pl";
+  ROUNDS = lang === "en" ? ROUNDS_EN : ROUNDS_PL;
+  T = TEXT[lang];
+  document.documentElement.lang = lang;
+  document.title = T.title;
+  $("logo").innerHTML = T.logo;
+  $("footnote").textContent = T.footnote;
+  document.querySelectorAll("#lang button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+  try { localStorage.setItem("lang", lang); } catch (e) { /* storage unavailable */ }
+}
+
+document.querySelectorAll("#lang button").forEach((b) => b.addEventListener("click", () => {
+  if (b.dataset.lang === lang) return;
+  setLang(b.dataset.lang);
+  if (view === "end") showEnd(); else showStart();
+}));
+
+function updateStats(bump) {
+  $("progressText").textContent = `${current + 1}/${ROUNDS.length}`;
+  const sp = $("scoreText");
+  sp.innerHTML = `${ICONS.star}<span>${score}</span>`;
+  sp.setAttribute("aria-label", `${T.points}: ${score}`);
+  if (bump) { sp.classList.remove("bump"); void sp.offsetWidth; sp.classList.add("bump"); }
+  $("trail").innerHTML = ROUNDS.map((_, i) => {
+    const res = results[i];
+    if (res) return `<span class="step ${res.caught === res.total ? "ok" : res.caught ? "part" : "no"}"></span>`;
+    return `<span class="step${i === current ? " now" : ""}"></span>`;
+  }).join("");
+}
+
+function seriesHTML() {
+  return `<p class="series">${esc(T.series)} ${T.games.map(([name, url]) => `<a href="${url}?lang=${lang}">${esc(name)} ${ICONS.arrow}</a>`).join("")}</p>`;
+}
+
+/* ---------- Screens ---------- */
+function startGame() { current = 0; score = 0; results = []; showRound(); }
+
+function showStart() {
+  view = "start";
+  setChrome(false);
+  setScreen(`
+    <div class="hero">
+      ${mascot("idle")}
+      <h1>${esc(T.title)}</h1>
+      <div class="bubble">👋 ${esc(T.hello)}</div>
+      <div class="what"><strong>${esc(T.whatTitle)}</strong><p>${esc(T.what)}</p></div>
+      <section class="how">
+        <h2>${esc(T.howTitle)}</h2>
+        <ol>
+          ${T.how.map(([t, d], i) => `
+            <li>
+              <span class="num" style="background:${HOW_COLORS[i]}">${i + 1}</span>
+              <div><strong>${esc(t)}</strong><p>${esc(d)}</p></div>
+            </li>`).join("")}
+        </ol>
+      </section>
+      <div class="expect"><strong>${esc(T.expectTitle)}</strong><p>${esc(T.expect)}</p></div>
+      <button class="btn" id="startBtn">${esc(T.start)} ${ICONS.arrow}</button>
+    </div>
+    ${seriesHTML()}`);
+  $("startBtn").onclick = startGame;
+  $("startBtn").focus();
+}
+
+function showRound() {
+  view = "round";
+  setChrome(true);
+  updateStats();
+  flags = new Set();
+  checked = false;
+  const r = ROUNDS[current];
+  setScreen(`
+    <div class="guide">
+      ${mascot("think")}
+      <div class="bubble" id="bubble" role="status" aria-live="polite">${esc(T.think)}</div>
+    </div>
+    <span class="round-tag">${esc(T.round)} ${current + 1}</span>
+    <p class="task">${esc(r.task)}</p>
+    <div class="box-label">${ICONS.doc} ${esc(T.srcLabel)}: ${esc(r.srcTitle)}</div>
+    <div class="src"><ul id="src">${r.src.map((line) => `<li>${esc(line)}</li>`).join("")}</ul></div>
+    <div class="box-label">${ICONS.ai} ${esc(r.aiTitle)}</div>
+    <div class="ai" id="ai">
+      ${r.question ? `<p class="q"><b>${esc(T.question)}</b> ${esc(T.quote(r.question))}</p>` : ""}
+      <p class="body">${r.sents.map((s, i) => `<span class="sent" role="button" tabindex="0" aria-pressed="false" data-i="${i}">${esc(s.t)}</span>`).join(" ")}</p>
+    </div>
+    <div class="check-row">
+      <span class="counter" id="counter" aria-live="polite"></span>
+      <button class="btn" id="checkBtn">${esc(T.check)} ${ICONS.arrow}</button>
+    </div>
+    <div id="after"></div>`);
+  screen.querySelectorAll(".sent").forEach((s) => {
+    s.addEventListener("click", () => toggle(+s.dataset.i));
+    s.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(+s.dataset.i); }
+    });
+  });
+  $("checkBtn").onclick = check;
+  updateFlags();
+  screen.querySelector(".sent").focus({ preventScroll: true });
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function toggle(i) {
+  if (checked) return;
+  const need = madeUp(ROUNDS[current]).length;
+  if (flags.has(i)) flags.delete(i);
+  else if (flags.size < need) flags.add(i);
+  else {
+    const c = $("counter");
+    c.textContent = T.full(need);
+    c.classList.remove("nudge"); void c.offsetWidth; c.classList.add("nudge");
+    return;
+  }
+  updateFlags();
+}
+
+function updateFlags() {
+  const need = madeUp(ROUNDS[current]).length;
+  screen.querySelectorAll(".sent").forEach((s) => s.setAttribute("aria-pressed", String(flags.has(+s.dataset.i))));
+  const c = $("counter");
+  c.classList.remove("nudge");
+  c.textContent = T.counter(flags.size, need);
+  $("checkBtn").disabled = checked || flags.size !== need;
+}
+
+function setBubble(text, cls) {
+  const b = $("bubble");
+  b.textContent = text;
+  b.className = "bubble pop " + (cls || "");
+}
+
+function check() {
+  const r = ROUNDS[current];
+  const fake = madeUp(r);
+  if (checked || flags.size !== fake.length) return;
+  checked = true;
+  updateFlags();
+
+  const caught = fake.filter((i) => flags.has(i)).length;
+  score += caught;
+  results.push({ caught, total: fake.length });
+  updateStats(caught > 0);
+
+  // Mark each sentence and light up the source lines the made-up ones should be compared with.
+  $("ai").classList.add("checked");
+  const notes = [];
+  screen.querySelectorAll(".sent").forEach((s) => {
+    const i = +s.dataset.i, sent = r.sents[i], flagged = flags.has(i);
+    s.removeAttribute("role");
+    s.removeAttribute("tabindex");
+    s.removeAttribute("aria-pressed");
+    let kind = "";
+    if (sent.h && flagged) kind = "caught";
+    else if (sent.h) kind = "missed";
+    else if (flagged) kind = "wrongflag";
+    if (!kind) return;
+    s.classList.add(kind);
+    notes.push({ kind, text: sent.t, note: sent.h ? sent.h.note : T.wrongNote });
+    if (sent.h && sent.h.src >= 0) $("src").children[sent.h.src].classList.add("hit");
+  });
+
+  const mood = caught === fake.length ? "happy" : caught ? "idle" : "oops";
+  screen.querySelector(".mascot").dataset.mood = mood;
+  if (caught === fake.length) setBubble(T.all, "ok");
+  else if (caught) setBubble(T.some(caught, fake.length), "part");
+  else setBubble(T.none, "no");
+
+  const isLast = current === ROUNDS.length - 1;
+  $("after").innerHTML = `
+    <ul class="notes">
+      ${notes.map((n, k) => `
+        <li class="${n.kind}" style="animation-delay:${k * 0.08}s">
+          <span class="tag">${esc(T[n.kind])}</span>
+          <q>${esc(n.text)}</q>
+          <span>${esc(n.note)}</span>
+        </li>`).join("")}
+    </ul>
+    <div class="lesson"><h3>${ICONS.bulb} ${esc(T.lesson)}</h3><p id="lessonText">${esc(r.lesson)}</p></div>
+    <div class="actions"><button class="btn" id="nextBtn" aria-describedby="lessonText">${esc(isLast ? T.result : T.next)} ${ICONS.arrow}</button></div>`;
+  const nextBtn = $("nextBtn");
+  nextBtn.onclick = () => { if (isLast) showEnd(); else { current++; showRound(); } };
+  // The Check button was disabled, so focus fell back to the page: hand it to the next step.
+  nextBtn.focus({ preventScroll: true });
+  $("after").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function showEnd() {
+  view = "end";
+  setChrome(false);
+  const total = maxStars();
+  const msg = T.msgs[score === total ? 0 : score >= total * 0.75 ? 1 : score >= total / 2 ? 2 : 3];
+  setScreen(`
+    <div class="hero">
+      ${mascot(score >= total / 2 ? "happy" : "think")}
+      <div class="score-blob"><b>${score}/${total}</b><br><span>${esc(T.stars(score))}</span></div>
+      <p class="score-msg">${esc(msg)}</p>
+    </div>
+    <h2>${esc(T.endTitle)}</h2>
+    <ol class="rules">
+      ${T.rules.map(([t, d], i) => `
+        <li style="--note:${NOTE_COLORS[i % NOTE_COLORS.length]};--delay:${0.15 + i * 0.12}s">
+          <span class="num">${i + 1}</span><div><strong>${esc(t)}:</strong> ${esc(d)}</div>
+        </li>`).join("")}
+    </ol>
+    <div class="callout"><span class="ico">${ICONS.tip}</span><div><strong>${esc(T.tipTitle)}</strong>${esc(T.tip)}</div></div>
+    <div class="end-actions"><button class="btn" id="againBtn">${esc(T.again)} ${ICONS.arrow}</button></div>
+    ${seriesHTML()}`);
+  $("againBtn").onclick = startGame;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+const urlLang = new URLSearchParams(location.search).get("lang");
+setLang(urlLang === "en" || urlLang === "pl" ? urlLang : readSavedLang() || "pl");
+showStart();
+</script>
+</body>
+</html>
