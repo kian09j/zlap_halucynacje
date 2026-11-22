@@ -92,23 +92,14 @@
   @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
   /* Mascot */
-  .mascot { display: block; overflow: visible; transform-origin: 50% 100%; }
-  .mascot .eyes-open { transform-origin: 60px 56px; animation: blink 5s ease-in-out infinite; }
-  .mascot .eyes-happy, .mascot .m-big, .mascot .m-o { display: none; }
-  .mascot[data-mood="happy"] .eyes-open, .mascot[data-mood="happy"] .m-smile { display: none; }
-  .mascot[data-mood="happy"] .eyes-happy, .mascot[data-mood="happy"] .m-big { display: inline; }
+  .mascot { display: block; width: auto; transform-origin: 50% 100%; }
   .mascot[data-mood="happy"] { animation: hop 0.5s ease; }
-  .mascot[data-mood="oops"] .m-smile { display: none; }
-  .mascot[data-mood="oops"] .m-o { display: inline; }
   .mascot[data-mood="oops"] { animation: shake 0.4s ease; }
-  .mascot .pupil { transition: transform 0.3s; }
-  .mascot[data-mood="think"] .pupil { transform: translate(2px, -2px); }
-  @keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
   @keyframes hop { 50% { transform: translateY(-8px); } }
   @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 
   .guide { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
-  .guide .mascot { width: 44px; height: 44px; flex: 0 0 44px; }
+  .guide .mascot { width: auto; height: 52px; flex: 0 0 auto; }
   .bubble { flex: 1; background: var(--gray); border-radius: 6px; padding: 10px 14px; }
   .bubble.ok { background: var(--green-bg); }
   .bubble.part { background: var(--yellow-bg); }
@@ -187,7 +178,7 @@
 
   /* Start and end pages */
   .hero { display: flex; flex-direction: column; align-items: flex-start; }
-  .hero .mascot { width: 76px; height: 76px; margin: 12px 0 10px; }
+  .hero .mascot { width: auto; height: 96px; margin: 12px 0 10px; }
   .hero .bubble { flex: none; width: 100%; margin: 0 0 8px; }
   h1 { font-size: 38px; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 14px; }
   h2 { font-size: 20px; font-weight: 600; margin: 28px 0 10px; }
@@ -567,37 +558,18 @@ const ICONS = { star: "⭐", bulb: "💡", arrow: "→", doc: "📄", ai: "🤖"
 let ROUNDS = ROUNDS_PL, T = TEXT.pl;
 let lang = "pl";
 
-// Bajtek, the little robot guide from "Myśl jak AI". Mood: idle, think, happy, oops.
+// Bajtek, the little robot guide of the "AI w pracy" series. Mood: idle, think, happy, oops.
+// The pictures live on the series main page, so every game shows the same Bajtek.
+// Opened locally (as a file or from a local server), the game takes them from the main page folder next to it.
+const LOCAL = location.protocol === "file:" || ["localhost", "127.0.0.1"].includes(location.hostname);
+const BAJTEK = LOCAL ? "../kian09j.github.io/bajtek/" : "https://kian09j.github.io/bajtek/";
+["idle", "think", "happy", "oops"].forEach((m) => { new Image().src = `${BAJTEK}${m}.png`; }); // preload, so mood changes don't flicker
 function mascot(mood = "idle") {
-  const ink = "#37352f";
-  return `
-  <svg class="mascot" data-mood="${mood}" viewBox="0 0 120 120" aria-hidden="true">
-    <g class="body" fill="none" stroke="${ink}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M35 99C27 99 24 95 23 90"/>
-      <path d="M85 99C93 99 96 95 97 90"/>
-      <rect x="34" y="88" width="52" height="26" rx="11" fill="#fff"/>
-      <path d="M60 108c-5-3.4-7.6-6-7.6-8.6a3.6 3.6 0 0 1 7.6-1.6a3.6 3.6 0 0 1 7.6 1.6c0 2.6-2.6 5.2-7.6 8.6z" fill="#e16259" stroke-width="2.5"/>
-      <path d="M60 26V14"/>
-      <circle cx="60" cy="9" r="5.5" fill="#f5c84c"/>
-      <rect x="8" y="46" width="11" height="20" rx="5" fill="#fff"/>
-      <rect x="101" y="46" width="11" height="20" rx="5" fill="#fff"/>
-      <rect x="16" y="24" width="88" height="64" rx="24" fill="#fff"/>
-      <rect x="28" y="37" width="64" height="40" rx="14" fill="#f1f1ef" stroke-width="2.5"/>
-    </g>
-    <g class="eyes-open">
-      <ellipse cx="47" cy="56" rx="5" ry="6.5" fill="${ink}"/>
-      <ellipse cx="73" cy="56" rx="5" ry="6.5" fill="${ink}"/>
-      <g class="pupil"><circle cx="48.6" cy="53.6" r="1.7" fill="#fff"/><circle cx="74.6" cy="53.6" r="1.7" fill="#fff"/></g>
-    </g>
-    <g class="eyes-happy" fill="none" stroke="${ink}" stroke-width="3.5" stroke-linecap="round">
-      <path d="M41.5 58q5.5-8 11 0"/><path d="M67.5 58q5.5-8 11 0"/>
-    </g>
-    <circle cx="37" cy="66" r="3.5" fill="#f5c0c0"/>
-    <circle cx="83" cy="66" r="3.5" fill="#f5c0c0"/>
-    <path class="m-smile" d="M55 66q5 4.5 10 0" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>
-    <path class="m-big" d="M53.5 64.5q6.5 9 13 0z" fill="${ink}"/>
-    <ellipse class="m-o" cx="60" cy="68" rx="3.5" ry="4" fill="${ink}"/>
-  </svg>`;
+  return `<img class="mascot" data-mood="${mood}" src="${BAJTEK}${mood}.png" alt="" width="248" height="288">`;
+}
+function setMood(el, mood) {
+  el.dataset.mood = mood;
+  el.src = `${BAJTEK}${mood}.png`;
 }
 
 const $ = (id) => document.getElementById(id);
@@ -798,7 +770,7 @@ function check() {
   });
 
   const mood = caught === fake.length ? "happy" : caught ? "idle" : "oops";
-  screen.querySelector(".mascot").dataset.mood = mood;
+  setMood(screen.querySelector(".mascot"), mood);
   if (caught === fake.length) setBubble(T.all, "ok");
   else if (caught) setBubble(T.some(caught, fake.length), "part");
   else setBubble(T.none, "no");
